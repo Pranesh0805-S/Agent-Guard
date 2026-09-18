@@ -4,10 +4,17 @@ import { inbox } from "../data/emails.js";
 export const outbox = [];
 export const deleted = [];
 
-// risk: "read" | "write" | "irreversible" (used later by the guard)
+export function resetState() {
+  outbox.length = 0;
+  deleted.length = 0;
+}
+
+// risk: "read" | "write" | "irreversible"
+// untrusted: true means the output can contain text written by an outsider.
 const registry = {
   list_emails: {
     risk: "read",
+    untrusted: true,
     description: "List all emails in the inbox (id, sender, subject).",
     input_schema: { type: "object", properties: {} },
     run: () =>
@@ -17,6 +24,7 @@ const registry = {
   },
   read_email: {
     risk: "read",
+    untrusted: true,
     description: "Read the full body of one email by id.",
     input_schema: {
       type: "object",
@@ -57,7 +65,7 @@ const registry = {
   },
 };
 
-// What the model sees (no risk field).
+// What the model sees (no risk/untrusted fields).
 export const toolSchemas = Object.entries(registry).map(([name, t]) => ({
   name,
   description: t.description,
@@ -65,6 +73,7 @@ export const toolSchemas = Object.entries(registry).map(([name, t]) => ({
 }));
 
 export const riskOf = (name) => registry[name]?.risk;
+export const isUntrusted = (name) => registry[name]?.untrusted === true;
 
 export function runTool(name, input) {
   const tool = registry[name];
