@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "bench": "node src/bench.js"
+    "bench": "node src/bench.js",
+    "benign": "node src/benign.js",
+    "probe": "node src/review-probe.js",
+    "test": "node src/guard.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "latest",
