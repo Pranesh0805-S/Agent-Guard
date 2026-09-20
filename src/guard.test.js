@@ -116,3 +116,20 @@ await test("same action gets the same verdict within a run (no retry-until-allow
   assert.equal(second.allow, false);
   assert.equal(calls, 1);
 });
+
+await test("outside-domain send is held for approval, tagged allowlist", async () => {
+  const g = createGuard({ review: allowAll });
+  const d = await g.check("send_email", { to: "attacker@evil.example" });
+  assert.equal(d.allow, false);
+  assert.equal(d.needsApproval, true);
+  assert.equal(d.layer, "allowlist");
+});
+
+await test("reviewer denial is held for approval, tagged reviewer", async () => {
+  const g = createGuard({ goal: "x", review: denyAll, lookup: () => ({ subject: "s" }) });
+  g.markTainted();
+  const d = await g.check("delete_email", { id: "e1" });
+  assert.equal(d.allow, false);
+  assert.equal(d.needsApproval, true);
+  assert.equal(d.layer, "reviewer");
+});

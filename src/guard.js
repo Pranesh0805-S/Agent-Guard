@@ -22,7 +22,8 @@ export function createGuard({ goal = "", review = apiReview, lookup = describeEm
       tainted = true;
     },
 
-    // Decide before a tool runs.
+    // Decide before a tool runs. A denied irreversible action is marked needsApproval,
+    // meaning a human may still choose to run it.
     async check(name, input) {
       const risk = riskOf(name);
       if (risk === "read") return { allow: true };
@@ -31,7 +32,12 @@ export function createGuard({ goal = "", review = apiReview, lookup = describeEm
       if (name === "send_email") {
         const domain = String(input?.to ?? "").split("@")[1]?.toLowerCase();
         if (!TRUSTED_DOMAINS.includes(domain)) {
-          return { allow: false, reason: `allowlist: recipient domain "${domain}" is not trusted` };
+          return {
+            allow: false,
+            needsApproval: true,
+            layer: "allowlist",
+            reason: `allowlist: recipient domain "${domain}" is not trusted`,
+          };
         }
       }
 
@@ -53,7 +59,13 @@ export function createGuard({ goal = "", review = apiReview, lookup = describeEm
         const cached = verdicts.has(key);
         if (!cached) verdicts.set(key, await review(goal, action));
         const verdict = verdicts.get(key);
-        return { allow: verdict.allow, reason: `reviewer: ${verdict.reason}`, reviewed: true, cached };
+
+        const out = { allow: verdict.allow, reason: `reviewer: ${verdict.reason}`, reviewed: true, cached };
+        if (!verdict.allow) {
+          out.needsApproval = true;
+          out.layer = "reviewer";
+        }
+        return out;
       }
 
       return { allow: true };

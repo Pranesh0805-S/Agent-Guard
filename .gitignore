@@ -1,4 +1,4 @@
-.env
 node_modules
-.gitignore
+.env
+data/approvals.json
 terminal log.txt

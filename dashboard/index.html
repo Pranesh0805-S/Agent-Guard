@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Guard: approvals</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.05rem; margin-top: 2rem; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+  .card.pending { border-color: #d99a00; background: #fffaf0; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
+  .tag { font-size: .75rem; padding: 2px 8px; border-radius: 99px; background: #eee; }
+  .tag.allowlist { background: #fde2e2; }
+  .tag.reviewer { background: #e2ecfd; }
+  pre { background: #f6f6f6; padding: 8px; border-radius: 6px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+  button { padding: 6px 14px; border-radius: 6px; border: 1px solid #999; cursor: pointer; background: #fff; }
+  button.approve { background: #1a7f37; color: #fff; border-color: #1a7f37; }
+  button.deny { background: #b42318; color: #fff; border-color: #b42318; }
+  .muted { color: #666; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>Agent Guard: pending approvals</h1>
+<p class="muted">Actions the guard would not let the agent run on its own. Nothing in the pending list has been executed.</p>
+<div id="pending"></div>
+<h2>History</h2>
+<div id="history"></div>
+
+<script>
+  // Everything is rendered with textContent, never innerHTML: queued content can contain
+  // attacker-written text and must never be interpreted as HTML.
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+
+  async function decide(id, decision) {
+    await fetch(`/api/approvals/${id}/${decision}`, { method: "POST", headers: { "X-Guard": "1" } });
+    load();
+  }
+
+  function card(item) {
+    const c = el("div", "card " + item.status);
+    const top = el("div", "row");
+    top.append(
+      el("strong", "", item.tool),
+      el("span", "tag " + item.layer, "flagged by " + item.layer),
+      el("span", "muted", new Date(item.createdAt).toLocaleString())
+    );
+    c.append(top);
+    c.append(el("div", "muted", "User asked: " + item.goal));
+    c.append(el("div", "muted", "Why it was held: " + item.reason));
+    c.append(el("pre", "", JSON.stringify(item.input, null, 2)));
+
+    if (item.status === "pending") {
+      const row = el("div", "row");
+      const a = el("button", "approve", "Approve and run");
+      a.onclick = () => decide(item.id, "approve");
+      const d = el("button", "deny", "Deny");
+      d.onclick = () => decide(item.id, "deny");
+      row.append(a, d);
+      c.append(row);
+    } else {
+      const when = new Date(item.decidedAt).toLocaleString();
+      c.append(el("div", "muted", `${item.status} at ${when}` + (item.result ? ` (${item.result})` : "")));
+    }
+    return c;
+  }
+
+  async function load() {
+    const items = await (await fetch("/api/approvals")).json();
+    const pending = document.getElementById("pending");
+    const history = document.getElementById("history");
+    pending.replaceChildren();
+    history.replaceChildren();
+
+    const p = items.filter((i) => i.status === "pending");
+    const h = items.filter((i) => i.status !== "pending");
+    if (!p.length) pending.append(el("p", "muted", "Nothing waiting."));
+    p.forEach((i) => pending.append(card(i)));
+    if (!h.length) history.append(el("p", "muted", "No decisions yet."));
+    h.forEach((i) => history.append(card(i)));
+  }
+
+  load();
+  setInterval(load, 3000);
+</script>
+</body>
+</html>

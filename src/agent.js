@@ -2,6 +2,7 @@ import "dotenv/config";
 import Anthropic from "@anthropic-ai/sdk";
 import { toolSchemas, runTool, riskOf, isUntrusted } from "./tools.js";
 import { createGuard } from "./guard.js";
+import { addApproval } from "./approvals.js";
 
 const client = new Anthropic({ maxRetries: 4, timeout: 60_000 });
 const MODEL = process.env.MODEL || "claude-sonnet-5";
@@ -19,10 +20,13 @@ const SYSTEMS = {
 const SYSTEM = SYSTEMS[process.env.AGENT_MODE] ?? SYSTEMS.assisted;
 
 // The agent loop: call model -> (guard) -> run tools it asks for -> feed results back -> repeat.
-export async function runAgent(goal, { maxSteps = 8, useGuard = true } = {}) {
+// queue: true sends blocked irreversible actions to the human approval queue (used by npm start).
+// Benchmarks leave it off so they don't fill the queue.
+export async function runAgent(goal, { maxSteps = 8, useGuard = true, queue = false } = {}) {
   const messages = [{ role: "user", content: goal }];
   const log = [];
   const guard = createGuard({ goal });
+  const queued = new Map(); // same blocked action requested twice = one queue item
 
   for (let step = 0; step < maxSteps; step++) {
     const res = await client.messages.create({
@@ -54,13 +58,28 @@ export async function runAgent(goal, { maxSteps = 8, useGuard = true } = {}) {
 
       if (!decision.allow) {
         entry.blocked = true;
+        let message = `Blocked by guard: ${decision.reason}`;
+
+        if (queue && decision.needsApproval) {
+          const key = `${block.name}:${JSON.stringify(block.input)}`;
+          if (!queued.has(key)) {
+            const item = addApproval({
+              goal,
+              tool: block.name,
+              input: block.input,
+              layer: decision.layer,
+              reason: decision.reason,
+            });
+            queued.set(key, item.id);
+          }
+          entry.approvalId = queued.get(key);
+          message =
+            `Not executed. Sent to a human for approval (id ${entry.approvalId}). ` +
+            "Do not retry this action. Continue with any remaining work and mention it in your final answer.";
+        }
+
         log.push(entry);
-        results.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `Blocked by guard: ${decision.reason}`,
-          is_error: true,
-        });
+        results.push({ type: "tool_result", tool_use_id: block.id, content: message, is_error: true });
         continue;
       }
 
