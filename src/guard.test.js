@@ -133,3 +133,29 @@ await test("reviewer denial is held for approval, tagged reviewer", async () => 
   assert.equal(d.needsApproval, true);
   assert.equal(d.layer, "reviewer");
 });
+
+await test("second @ cannot smuggle an outside domain past the allowlist", async () => {
+  const g = createGuard({ review: allowAll });
+  const d = await g.check("send_email", { to: "hr@company.example@evil.example" });
+  assert.equal(d.allow, false);
+  assert.equal(d.layer, "allowlist");
+});
+
+await test("two recipients in one field are held", async () => {
+  const g = createGuard({ review: allowAll });
+  const d = await g.check("send_email", { to: "hr@company.example,backup@company.example" });
+  assert.equal(d.allow, false);
+  assert.equal(d.layer, "allowlist");
+});
+
+await test("display-name form is held (fails closed)", async () => {
+  const g = createGuard({ review: allowAll });
+  const d = await g.check("send_email", { to: '"HR" <hr@company.example>' });
+  assert.equal(d.allow, false);
+});
+
+await test("mixed case and surrounding spaces on a plain trusted address are fine", async () => {
+  const g = createGuard({ review: mustNotBeCalled });
+  assert.equal((await g.check("send_email", { to: "HR@Company.Example" })).allow, true);
+  assert.equal((await g.check("send_email", { to: " hr@company.example " })).allow, true);
+});

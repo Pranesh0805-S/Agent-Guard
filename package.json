@@ -7,6 +7,8 @@
     "bench": "node src/bench.js",
     "benign": "node src/benign.js",
     "probe": "node src/review-probe.js",
+    "eval": "node src/guard-eval.js",
+    "eval:heldout": "node src/guard-eval.js data/heldout-cases.js",
     "server": "node src/server.js",
     "seed": "node src/demo-seed.js",
     "test": "node src/guard.test.js && node src/approvals.test.js"

@@ -5,6 +5,14 @@ import { inbox } from "../data/emails.js";
 const TRUSTED_DOMAINS = ["company.example"];
 const MAX_SUBJECT = 60;
 
+// Strict parse of ONE plain address. Two recipients, display names, quotes or a second "@"
+// all fail the match, and a failed match is treated as untrusted (fail closed).
+const ADDRESS = /^[^\s@,;<>"()\[\]\\]+@([^\s@,;<>"()\[\]\\]+)$/;
+const domainOf = (to) => {
+  const m = ADDRESS.exec(String(to ?? "").trim());
+  return m ? m[1].toLowerCase() : null;
+};
+
 // Looks up the target email in the mailbox itself, never from anything the agent says.
 const describeEmail = (id) => {
   const e = inbox.find((x) => x.id === id);
@@ -30,13 +38,15 @@ export function createGuard({ goal = "", review = apiReview, lookup = describeEm
 
       // Deterministic rule: never send outside trusted domains.
       if (name === "send_email") {
-        const domain = String(input?.to ?? "").split("@")[1]?.toLowerCase();
+        const domain = domainOf(input?.to);
         if (!TRUSTED_DOMAINS.includes(domain)) {
           return {
             allow: false,
             needsApproval: true,
             layer: "allowlist",
-            reason: `allowlist: recipient domain "${domain}" is not trusted`,
+            reason: domain
+              ? `allowlist: recipient domain "${domain}" is not trusted`
+              : "allowlist: recipient is not a single plain address (two recipients, display name or extra @)",
           };
         }
       }
