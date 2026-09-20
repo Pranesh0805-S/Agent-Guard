@@ -8,6 +8,7 @@
     "benign": "node src/benign.js",
     "probe": "node src/review-probe.js",
     "server": "node src/server.js",
+    "seed": "node src/demo-seed.js",
     "test": "node src/guard.test.js && node src/approvals.test.js"
   },
   "dependencies": {

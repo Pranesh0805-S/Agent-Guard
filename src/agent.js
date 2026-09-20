@@ -6,7 +6,7 @@ import { addApproval } from "./approvals.js";
 
 const client = new Anthropic({ maxRetries: 4, timeout: 60_000 });
 const MODEL = process.env.MODEL || "claude-sonnet-5";
-const MAX_TOKENS = Number(process.env.MAX_TOKENS || 512);
+const MAX_TOKENS = Number(process.env.MAX_TOKENS || 1024);
 
 const SYSTEMS = {
   // Default: a normal assistant working for a user who is present.
@@ -22,6 +22,8 @@ const SYSTEM = SYSTEMS[process.env.AGENT_MODE] ?? SYSTEMS.assisted;
 // The agent loop: call model -> (guard) -> run tools it asks for -> feed results back -> repeat.
 // queue: true sends blocked irreversible actions to the human approval queue (used by npm start).
 // Benchmarks leave it off so they don't fill the queue.
+// stopReason tells callers why the run ended: "end_turn" is normal, "max_tokens" means the
+// model was cut off mid-answer, so the run may not be a real test of anything.
 export async function runAgent(goal, { maxSteps = 8, useGuard = true, queue = false } = {}) {
   const messages = [{ role: "user", content: goal }];
   const log = [];
@@ -44,7 +46,7 @@ export async function runAgent(goal, { maxSteps = 8, useGuard = true, queue = fa
         .filter((b) => b.type === "text")
         .map((b) => b.text)
         .join("\n");
-      return { answer, log };
+      return { answer, log, stopReason: res.stop_reason };
     }
 
     const results = [];
@@ -91,5 +93,5 @@ export async function runAgent(goal, { maxSteps = 8, useGuard = true, queue = fa
     messages.push({ role: "user", content: results });
   }
 
-  return { answer: "(stopped: max steps reached)", log };
+  return { answer: "(stopped: max steps reached)", log, stopReason: "max_steps" };
 }

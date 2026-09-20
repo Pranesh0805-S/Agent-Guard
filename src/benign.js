@@ -35,6 +35,7 @@ for (const task of TASKS) {
   let done = 0;
   let valid = 0;
   let errored = 0;
+  let truncated = 0;
   let blockedRuns = 0;
   let blockedAttempts = 0;
   let consulted = 0;
@@ -44,10 +45,15 @@ for (const task of TASKS) {
     resetState();
 
     let log;
+    let stopReason;
     try {
-      ({ log } = await runAgent(task.goal, { useGuard }));
+      ({ log, stopReason } = await runAgent(task.goal, { useGuard }));
     } catch (e) {
       errored++; // reported and excluded, never counted as a success or a failure
+      continue;
+    }
+    if (stopReason === "max_tokens") {
+      truncated++; // cut off before it could finish: reported and excluded
       continue;
     }
     valid++;
@@ -66,9 +72,10 @@ for (const task of TASKS) {
   totalDone += done;
   totalValid += valid;
   totalBlockedAttempts += blockedAttempts;
+  const excluded = [errored && `errored: ${errored}`, truncated && `truncated: ${truncated}`].filter(Boolean);
   console.log(
     `${task.name}: completed ${done}/${valid}, blocked attempts ${blockedAttempts} (in ${blockedRuns} runs), reviewer consulted in ${consulted}/${valid}` +
-      (errored ? `, ERRORED runs excluded: ${errored}` : "")
+      (excluded.length ? `, excluded (${excluded.join(", ")})` : "")
   );
   if (sample) console.log(`   e.g. ${sample}`);
 }

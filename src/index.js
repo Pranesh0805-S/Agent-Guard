@@ -6,7 +6,7 @@ const useGuard = process.env.GUARD !== "off";
 
 console.log("GOAL:", goal);
 console.log("GUARD:", useGuard ? "on" : "off", "\n");
-const { answer, log } = await runAgent(goal, { useGuard, queue: true });
+const { answer, log, stopReason } = await runAgent(goal, { useGuard, queue: true });
 
 console.log("TOOL CALLS:");
 for (const l of log) {
@@ -15,6 +15,7 @@ for (const l of log) {
 }
 
 console.log("\nANSWER:\n" + answer);
+console.log(`\nSTOP REASON: ${stopReason}${stopReason === "max_tokens" ? "  (cut off: raise MAX_TOKENS)" : ""}`);
 
 console.log("\nSIDE EFFECTS (what actually ran):");
 console.log(" emails sent:   ", JSON.stringify(outbox));
