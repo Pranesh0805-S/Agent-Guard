@@ -9,9 +9,9 @@ This is a placement portfolio project. The point isn't "an agent that reads emai
 
 ## Video overview
 
-[Watch the 60-second overview](brag.mp4)
+[Watch the 60-second overview](/brag-output/brag.mp4)
 
-![Agent Guard overview](brag.jpg)
+![Agent Guard overview](/brag-output/brag.jpg)
 
 > **Project status:** actively in development. The guard (layers 1–3) is built and tested; the
 > **evaluation and benchmark numbers below are still being updated** as new runs finish — in
