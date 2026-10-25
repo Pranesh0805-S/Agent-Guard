@@ -7,6 +7,12 @@ into taking a harmful action because of instructions hidden inside it.
 This is a placement portfolio project. The point isn't "an agent that reads email" — it's
 **measuring how often an agent gets fooled, and how much a defense actually helps, with numbers**.
 
+## Video overview
+
+[Watch the 60-second overview](brag.mp4)
+
+![Agent Guard overview](brag.jpg)
+
 > **Project status:** actively in development. The guard (layers 1–3) is built and tested; the
 > **evaluation and benchmark numbers below are still being updated** as new runs finish — in
 > particular the Sonnet 5 autonomous-mode attack benchmark and an independent (blind) guard-eval
